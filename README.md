@@ -1,9 +1,15 @@
 # bizday
-Calculate business days
+営業日を計算する
 
 ## Usage
-Calculate the business day between two dates
+指定した日付から営業日を計算
 ```
-$ ./bizday 2024-06-12 2024-06-15
-3
+$ ./bizday 2024-06-13 2024-06-26 
+10
+```
+
+指定した日付に指定した営業日を加算した日付を計算
+```
+$ ./bizday 2024-06-13 10        
+2024-06-26
 ```

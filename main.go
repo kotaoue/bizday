@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,7 +43,7 @@ func Main() error {
 	args := os.Args[1:]
 
 	if len(args) != 2 {
-		return fmt.Errorf("arguments should be two dates or a date and number.")
+		return fmt.Errorf("arguments should be two dates or a date and integer.")
 	}
 
 	st, err := toTime(args[0])
@@ -50,13 +51,30 @@ func Main() error {
 		return err
 	}
 
-	et, err := toTime(args[1])
+	i, err := strconv.Atoi(args[1])
 	if err != nil {
-		return err
+		et, err := toTime(args[1])
+		if err != nil {
+			return err
+		}
+		// second argument is a date
+		return printNumberOfBusinessDays(st, et)
+	} else {
+		// second argument is a integer
+		return printLaterBusinessDays(st, i)
 	}
 
-	// TODO 営業日加算 = 第2引数がint で分岐する
-	fmt.Println(subBusinessDays(st, et))
+	return fmt.Errorf("arguments should be two dates or a date and number.")
+}
+
+func printLaterBusinessDays(st time.Time, i int) error {
+	t := addBusinessDays(st, i)
+	fmt.Println(t.Format("2006-01-02"))
+	return nil
+}
+
+func printNumberOfBusinessDays(st, et time.Time) error {
+	fmt.Println(numberOfBusinessDays(st, et))
 	return nil
 }
 
@@ -88,7 +106,7 @@ func isBusinessDay(date time.Time) bool {
 	return true
 }
 
-func subBusinessDays(startTime, endTime time.Time) int {
+func numberOfBusinessDays(startTime, endTime time.Time) int {
 	if startTime.After(endTime) {
 		return 0
 	}
@@ -103,13 +121,15 @@ func subBusinessDays(startTime, endTime time.Time) int {
 	return i
 }
 
-func addBusinessDays(startDate time.Time, days int) time.Time {
-	currentDate := startDate
-	for days > 0 {
-		currentDate = currentDate.AddDate(0, 0, 1)
-		if isBusinessDay(currentDate) {
-			days--
+func addBusinessDays(st time.Time, i int) time.Time {
+	t := st
+	for i > 0 {
+		if isBusinessDay(t) {
+			i--
+		}
+		if i > 0 {
+			t = t.AddDate(0, 0, 1)
 		}
 	}
-	return currentDate
+	return t
 }
