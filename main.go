@@ -61,12 +61,9 @@ func Main() error {
 		}
 		// second argument is a date
 		return printNumberOfBusinessDays(st, et)
-	} else {
-		// second argument is a integer
-		return printLaterBusinessDays(st, i)
 	}
-
-	return fmt.Errorf("arguments should be two dates or a date and number.")
+	// second argument is a integer
+	return printLaterBusinessDays(st, i)
 }
 
 func printLaterBusinessDays(st time.Time, i int) error {
