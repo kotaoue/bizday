@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -132,4 +134,33 @@ func addBusinessDays(st time.Time, i int) time.Time {
 		}
 	}
 	return t
+}
+
+func getJson(t time.Time) error {
+	apiURL := fmt.Sprintf("https://holidays-jp.github.io/api/v1/%s/date.json", t.Format("2006"))
+
+	fmt.Println(apiURL)
+
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http error occurred. status: %s", resp.Status)
+	}
+
+	f, err := os.Create(fmt.Sprint(t.Format("2006"), ".json"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
