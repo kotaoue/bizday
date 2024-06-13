@@ -23,3 +23,6 @@ go.work.sum
 
 # Ignore build results
 bizday
+
+# Ignore download files
+*.json
