@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -174,34 +176,22 @@ func setHolidays(t time.Time) error {
 		getJson(t)
 	}
 
-	_, err = os.Open(name)
+	file, err := os.Open(name)
 	if err != nil {
 		return err
 	}
 
-	years[t.Format("2006")] = Holidays{
-		"2024-01-01": "元日",
-		"2024-01-08": "成人の日",
-		"2024-02-11": "建国記念の日",
-		"2024-02-12": "建国記念の日 振替休日",
-		"2024-02-23": "天皇誕生日",
-		"2024-03-20": "春分の日",
-		"2024-04-29": "昭和の日",
-		"2024-05-03": "憲法記念日",
-		"2024-05-04": "みどりの日",
-		"2024-05-05": "こどもの日",
-		"2024-05-06": "こどもの日 振替休日",
-		"2024-07-15": "海の日",
-		"2024-08-11": "山の日",
-		"2024-08-12": "休日 山の日",
-		"2024-09-16": "敬老の日",
-		"2024-09-22": "秋分の日",
-		"2024-09-23": "秋分の日 振替休日",
-		"2024-10-14": "スポーツの日",
-		"2024-11-03": "文化の日",
-		"2024-11-04": "文化の日 振替休日",
-		"2024-11-23": "勤労感謝の日",
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
 	}
 
+	var holidays map[string]string
+	err = json.Unmarshal(bytes, &holidays)
+	if err != nil {
+		return err
+	}
+
+	years[t.Format("2006")] = holidays
 	return nil
 }
