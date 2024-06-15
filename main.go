@@ -10,30 +10,9 @@ import (
 	"time"
 )
 
-// todo: 休日を取得するAPIを使って動的に取得して、jsonで保存しておく
-var holidays = map[string]string{
-	"2024-01-01": "元日",
-	"2024-01-08": "成人の日",
-	"2024-02-11": "建国記念の日",
-	"2024-02-12": "建国記念の日 振替休日",
-	"2024-02-23": "天皇誕生日",
-	"2024-03-20": "春分の日",
-	"2024-04-29": "昭和の日",
-	"2024-05-03": "憲法記念日",
-	"2024-05-04": "みどりの日",
-	"2024-05-05": "こどもの日",
-	"2024-05-06": "こどもの日 振替休日",
-	"2024-07-15": "海の日",
-	"2024-08-11": "山の日",
-	"2024-08-12": "休日 山の日",
-	"2024-09-16": "敬老の日",
-	"2024-09-22": "秋分の日",
-	"2024-09-23": "秋分の日 振替休日",
-	"2024-10-14": "スポーツの日",
-	"2024-11-03": "文化の日",
-	"2024-11-04": "文化の日 振替休日",
-	"2024-11-23": "勤労感謝の日",
-}
+type Holidays map[string]string
+
+var years = map[string]Holidays{}
 
 func main() {
 	if err := Main(); err != nil {
@@ -67,13 +46,21 @@ func Main() error {
 }
 
 func printLaterBusinessDays(st time.Time, i int) error {
-	t := addBusinessDays(st, i)
+	t, err := addBusinessDays(st, i)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println(t.Format("2006-01-02"))
 	return nil
 }
 
 func printNumberOfBusinessDays(st, et time.Time) error {
-	fmt.Println(numberOfBusinessDays(st, et))
+	i, err := numberOfBusinessDays(st, et)
+	if err != nil {
+		return err
+	}
+	fmt.Println(i)
 	return nil
 }
 
@@ -89,54 +76,70 @@ func toTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("invalid date format: %s\nsupported formats are %s", s, strings.Join(formats, ", "))
 }
 
-func isHoliday(date time.Time) bool {
-	_, exists := holidays[date.Format("2006-01-02")]
-	return exists
+func isHoliday(t time.Time) (bool, error) {
+	_, exists := years[t.Format("2006")]
+	if !exists {
+		if err := setHolidays(t); err != nil {
+			return false, err
+		}
+	}
+
+	holidays := years[t.Format("2006")]
+	_, exists = holidays[t.Format("2006-01-02")]
+	return exists, nil
 }
 
-func isBusinessDay(date time.Time) bool {
+func isBusinessDay(date time.Time) (bool, error) {
 	weekday := date.Weekday()
 	if weekday == time.Saturday || weekday == time.Sunday {
-		return false
+		return false, nil
 	}
-	if isHoliday(date) {
-		return false
+	b, err := isHoliday(date)
+	if err != nil {
+		return false, err
 	}
-	return true
+	return !b, nil
 }
 
-func numberOfBusinessDays(startTime, endTime time.Time) int {
+func numberOfBusinessDays(startTime, endTime time.Time) (int, error) {
 	if startTime.After(endTime) {
-		return 0
+		return 0, nil
 	}
 
 	i := 0
 	for t := startTime; !t.After(endTime); t = t.AddDate(0, 0, 1) {
-		if isBusinessDay(t) {
+		b, err := isBusinessDay(t)
+		if err != nil {
+			return 0, err
+		}
+		if b {
 			i++
 		}
 	}
 
-	return i
+	return i, nil
 }
 
-func addBusinessDays(st time.Time, i int) time.Time {
+func addBusinessDays(st time.Time, i int) (time.Time, error) {
 	t := st
 	for i > 0 {
-		if isBusinessDay(t) {
+		fmt.Println(i, t)
+		b, err := isBusinessDay(t)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if b {
 			i--
 		}
 		if i > 0 {
 			t = t.AddDate(0, 0, 1)
 		}
 	}
-	return t
+	return t, nil
 }
 
 func getJson(t time.Time) error {
 	apiURL := fmt.Sprintf("https://holidays-jp.github.io/api/v1/%s/date.json", t.Format("2006"))
-
-	fmt.Println(apiURL)
 
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -157,6 +160,47 @@ func getJson(t time.Time) error {
 	_, err = io.Copy(f, resp.Body)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func setHolidays(t time.Time) error {
+	// 指定した日付のjsonをローカル読み込む
+	name := fmt.Sprint(t.Format("2006"), ".json")
+	_, err := os.Stat(name)
+	if os.IsNotExist(err) {
+		// なかったらAPIから取得
+		getJson(t)
+	}
+
+	_, err = os.Open(name)
+	if err != nil {
+		return err
+	}
+
+	years[t.Format("2006")] = Holidays{
+		"2024-01-01": "元日",
+		"2024-01-08": "成人の日",
+		"2024-02-11": "建国記念の日",
+		"2024-02-12": "建国記念の日 振替休日",
+		"2024-02-23": "天皇誕生日",
+		"2024-03-20": "春分の日",
+		"2024-04-29": "昭和の日",
+		"2024-05-03": "憲法記念日",
+		"2024-05-04": "みどりの日",
+		"2024-05-05": "こどもの日",
+		"2024-05-06": "こどもの日 振替休日",
+		"2024-07-15": "海の日",
+		"2024-08-11": "山の日",
+		"2024-08-12": "休日 山の日",
+		"2024-09-16": "敬老の日",
+		"2024-09-22": "秋分の日",
+		"2024-09-23": "秋分の日 振替休日",
+		"2024-10-14": "スポーツの日",
+		"2024-11-03": "文化の日",
+		"2024-11-04": "文化の日 振替休日",
+		"2024-11-23": "勤労感謝の日",
 	}
 
 	return nil
